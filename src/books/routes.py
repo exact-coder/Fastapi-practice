@@ -45,7 +45,7 @@ async def create_a_book(
 
 
 @book_router.get(
-    "/{book_uid}"
+    "/{book_uid}",response_model=Book
 )
 async def get_book(
     book_uid: str,
