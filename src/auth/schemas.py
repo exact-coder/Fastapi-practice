@@ -20,6 +20,8 @@ class UserModel(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
+class UserLoginModel(BaseModel):
+    email: str = Field(max_length=50)
+    password: str = Field(min_length=5)
 
 

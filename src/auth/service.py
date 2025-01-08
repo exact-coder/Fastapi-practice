@@ -8,12 +8,10 @@ from .utils import generate_passwd_hash
 class UserService:
     async def get_user_by_email(self,email: str, session: AsyncSession):
         statement = select(User).where(User.email == email)
-
-        result =  await session.execute(statement)
-
-        user = result.first()
-
+        result = await session.execute(statement)  # Use session.execute, not session.exec
+        user = result.scalars().one_or_none()  # Extract the mapped User instance or return None
         return user
+    
     async def user_exists(self, email, session: AsyncSession):
         user = await self.get_user_by_email(email, session)
 
