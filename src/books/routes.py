@@ -10,7 +10,7 @@ from src.db.main import get_session
 from src.auth.dependencies import RoleChecker
 
 
-from .schemas import Book, BookCreateModel, BookUpdateModel
+from .schemas import Book, BookCreateModel, BookUpdateModel, BookDetailModel
 
 book_router = APIRouter()
 book_service = BookService()
@@ -56,7 +56,7 @@ async def create_a_book(
 
 
 @book_router.get(
-    "/{book_uid}",response_model=Book, dependencies=[role_checker]
+    "/{book_uid}",response_model=BookDetailModel, dependencies=[role_checker]
 )
 async def get_book(
     book_uid: str,

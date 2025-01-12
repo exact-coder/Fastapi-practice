@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional,List
 from src.books.schemas import Book
+from src.reviews.schemas import ReviewModel
 
 class UserCreateModel(BaseModel):
     first_name: str = Field(max_length=50)
@@ -21,7 +22,10 @@ class UserModel(BaseModel):
     password_hash: str = Field(exclude=True)
     created_at: datetime
     updated_at: datetime
+
+class UserBooksModel(UserModel):
     books: List[Book]
+    reviews: List[ReviewModel]
 
 class UserLoginModel(BaseModel):
     email: str = Field(max_length=50)
