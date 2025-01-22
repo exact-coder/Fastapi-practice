@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from src.books.routes import book_router
 from src.auth.routes import auth_router
 from src.reviews.routes import review_router
 from src.tags.routes import tags_router
 from src.db.main import init_db
+from .errors import register_all_errors
 
 
 
@@ -40,6 +41,8 @@ app = FastAPI(
 async def on_startup():
     # Ensure the database is initialized and tables are created
     await init_db()
+
+register_all_errors(app)
 
 app.include_router(book_router, prefix=f"{version_prefix}/books", tags=["books"])
 app.include_router(auth_router, prefix=f"{version_prefix}/auth", tags=["auth"])

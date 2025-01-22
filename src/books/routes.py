@@ -12,6 +12,8 @@ from src.auth.dependencies import RoleChecker
 
 from .schemas import Book, BookCreateModel, BookUpdateModel, BookDetailModel
 
+from src.errors import BookNotFound
+
 book_router = APIRouter()
 book_service = BookService()
 access_token_bearer = AccessTokenBearer()
@@ -68,7 +70,7 @@ async def get_book(
     if book:
         return book
     else:
-        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+        raise BookNotFound()
 
 
 @book_router.patch("/{book_uid}", response_model=Book, dependencies=[role_checker])
@@ -81,7 +83,7 @@ async def update_book(
     updated_book = await book_service.update_book(book_uid, book_update_data, session)
 
     if updated_book is None:
-        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+        raise BookNotFound()
     else:
         return updated_book
 
@@ -97,6 +99,6 @@ async def delete_book(
     book_to_delete = await book_service.delete_book(book_uid, session)
 
     if book_to_delete is None:
-        raise HTTPException(status_code=status.HTTP_204_NO_CONTENT)
+        raise BookNotFound()
     else:
         return {}
