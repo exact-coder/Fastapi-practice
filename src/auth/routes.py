@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends,status
-from .schemas import UserCreateModel,UserModel,UserLoginModel,UserBooksModel
+from fastapi import APIRouter, Depends,status, BackgroundTasks
+from .schemas import UserCreateModel,UserModel,UserLoginModel,UserBooksModel,EmailModel
 from .service import UserService
 from src.db.main import get_session
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi.exceptions import HTTPException
-from .utils import create_access_token,decode_token,verify_password
+from .utils import create_access_token,decode_token,verify_password, create_url_safe_token, decode_url_safe_token
 from fastapi.responses import JSONResponse
 from datetime import timedelta,datetime
 from .dependencies import RefreshTokenBearer, AccessTokenBearer, get_current_user, RoleChecker
@@ -12,6 +12,8 @@ from src.db.redis import add_jti_to_blocklist
 from typing import List
 from src.db.models import User
 from src.errors import UserAlreadyExists, InvalidCredentials, InvalidToken
+from src.mail import mail,create_message
+from src.config import Config
 
 
 REFRESH_TOKEN_EXPIRY = 2
@@ -20,7 +22,25 @@ auth_router = APIRouter()
 user_service = UserService()
 role_checker = RoleChecker(['admin','user'])
 
-@auth_router.post('/signp',response_model=UserModel, status_code=status.HTTP_201_CREATED)
+@auth_router.post('/send_mail')
+async def send_mail(emails: EmailModel):
+    emails = emails.addresses
+
+    html ="<h1>Welcome to bookly application</h1>"
+
+    message = create_message(
+        recipients=emails,
+        subject="This is a test message",
+        body=html
+    )
+
+    await mail.send_message(message)
+
+    return { "message": "Email send successfully"}
+
+
+
+@auth_router.post('/signup',response_model=UserModel, status_code=status.HTTP_201_CREATED)
 async def create_user_Account(user_data: UserCreateModel, session: AsyncSession= Depends(get_session)):
     email = user_data.email
 
@@ -30,7 +50,24 @@ async def create_user_Account(user_data: UserCreateModel, session: AsyncSession=
         raise UserAlreadyExists()
     new_user = await user_service.create_user(user_data, session)
 
-    return new_user
+    token = create_url_safe_token({"email":email})
+    link = f"http://{Config.DOMAIN}/api/v1/auth/verify/{token}"
+
+    html_message = f"""
+    <h1>Verify your Bookly Account</h1>
+    <p> Please click this <a href="{link}">Link</a> to verify your accont</p>
+    """
+
+    message = create_message(
+        recipients=[email],
+        subject="Bookly Account Verification Mail",
+        body=html_message
+    )
+
+    return {
+        "message": "Account Created ! Check email to verify your accont",
+        "user": html_message
+    }
 
 @auth_router.post('/login')
 async def login_users(login_data: UserLoginModel, session: AsyncSession = Depends(get_session)):

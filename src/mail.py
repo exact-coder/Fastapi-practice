@@ -30,8 +30,7 @@ mail = FastMail(
 def create_message(
     recipients:list[str], 
     subject:str, 
-    body: str,
-    background_tasks= BackgroundTasks
+    body: str
     ):
 
     message = MessageSchema(
@@ -41,11 +40,4 @@ def create_message(
         subtype=MessageType.html,
     )
 
-    background_tasks.add_task(mail.send_message,message)
-
-    return {
-        "status_code": status.HTTP_201_CREATED,
-        "message": "Email has been sent",
-        "mail": message
-
-    }
+    return message
