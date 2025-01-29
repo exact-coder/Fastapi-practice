@@ -11,7 +11,7 @@ from .dependencies import RefreshTokenBearer, AccessTokenBearer, get_current_use
 from src.db.redis import add_jti_to_blocklist
 from typing import List
 from src.db.models import User
-from src.errors import UserAlreadyExists, InvalidCredentials, InvalidToken
+from src.errors import UserAlreadyExists, InvalidCredentials, InvalidToken,UserNotFound
 from src.mail import mail,create_message
 from src.config import Config
 
@@ -40,7 +40,7 @@ async def send_mail(emails: EmailModel):
 
 
 
-@auth_router.post('/signup',response_model=UserModel, status_code=status.HTTP_201_CREATED)
+@auth_router.post('/signup', status_code=status.HTTP_201_CREATED)
 async def create_user_Account(user_data: UserCreateModel, session: AsyncSession= Depends(get_session)):
     email = user_data.email
 
@@ -64,10 +64,33 @@ async def create_user_Account(user_data: UserCreateModel, session: AsyncSession=
         body=html_message
     )
 
+    await mail.send_message(message)
+
     return {
         "message": "Account Created ! Check email to verify your accont",
-        "user": html_message
+        "user": new_user
     }
+
+@auth_router.get('/verify/{token}')
+async def verify_user_account(token:str, session: AsyncSession = Depends(get_session)):
+
+    token_data = decode_url_safe_token(token)
+    user_email = token_data.get('email')
+
+    if user_email:
+        user = await user_service.get_user_by_email(user_email,session)
+
+        if not user:
+            raise UserNotFound()
+        
+        await user_service.update_user(user, {"is_verified": True}, session)
+
+        return JSONResponse(
+            content={"message": "Account verified successfully"},status_code=status.HTTP_200_OK
+        )
+    return JSONResponse(
+        content={"message": "Error occured during verification!!"},status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+    )
 
 @auth_router.post('/login')
 async def login_users(login_data: UserLoginModel, session: AsyncSession = Depends(get_session)):
