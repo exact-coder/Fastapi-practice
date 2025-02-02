@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends,status, BackgroundTasks
-from .schemas import UserCreateModel,UserModel,UserLoginModel,UserBooksModel,EmailModel
+from .schemas import UserCreateModel,UserModel,UserLoginModel,UserBooksModel,EmailModel,PasswordResetRequestModel,PasswordResetConfirmModel
 from .service import UserService
 from src.db.main import get_session
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -167,3 +167,49 @@ async def revoke_token(token_details: dict= Depends(AccessTokenBearer())):
         status_code=status.HTTP_200_OK
     )
 
+@auth_router.post('/password-reset-request')
+async def password_reset_request(email_data: PasswordResetRequestModel):
+    email = email_data.email
+
+    token = create_url_safe_token({"email": email})
+    link = f"http://{Config.DOMAIN}/api/v1/auth/password-reset-confirm/{token}"
+
+    html_message = f"""
+    <h1>Reset Your Password</h1>
+    <p>Please click this <a href="{link}">Link</a> to reset your password</p>
+    """
+
+    message = create_message(
+        recipients=[email], subject="Reset Your Password", body=html_message
+    )
+
+    await mail.send_message(message)
+
+    return JSONResponse(
+        content={
+            "message": "Please check your email for instructios to reset your password"
+        },
+        status_code=status.HTTP_200_OK
+    )
+
+
+@auth_router.get('/passwod-reset-confirm/{token}')
+async def reset_account_password(token:str,passwords: PasswordResetConfirmModel ,session: AsyncSession = Depends(get_session)):
+
+    token_data = decode_url_safe_token(token)
+    user_email = token_data.get('email')
+
+    if user_email:
+        user = await user_service.get_user_by_email(user_email,session)
+
+        if not user:
+            raise UserNotFound()
+        
+        await user_service.update_user(user, {"is_verified": True}, session)
+
+        return JSONResponse(
+            content={"message": "Account verified successfully"},status_code=status.HTTP_200_OK
+        )
+    return JSONResponse(
+        content={"message": "Error occured during verification!!"},status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+    )
