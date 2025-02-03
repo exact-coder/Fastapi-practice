@@ -4,7 +4,7 @@ from .service import UserService
 from src.db.main import get_session
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi.exceptions import HTTPException
-from .utils import create_access_token,decode_token,verify_password, create_url_safe_token, decode_url_safe_token
+from .utils import create_access_token,decode_token,verify_password, create_url_safe_token, decode_url_safe_token,generate_passwd_hash
 from fastapi.responses import JSONResponse
 from datetime import timedelta,datetime
 from .dependencies import RefreshTokenBearer, AccessTokenBearer, get_current_user, RoleChecker
@@ -193,8 +193,13 @@ async def password_reset_request(email_data: PasswordResetRequestModel):
     )
 
 
-@auth_router.get('/passwod-reset-confirm/{token}')
+@auth_router.post('/password-reset-confirm/{token}')
 async def reset_account_password(token:str,passwords: PasswordResetConfirmModel ,session: AsyncSession = Depends(get_session)):
+    if passwords.new_password != passwords.confirm_new_password:
+        raise HTTPException(
+            detail="Passwords do not match",
+            status_code=status.HTTP_406_NOT_ACCEPTABLE
+            )
 
     token_data = decode_url_safe_token(token)
     user_email = token_data.get('email')
@@ -204,12 +209,12 @@ async def reset_account_password(token:str,passwords: PasswordResetConfirmModel 
 
         if not user:
             raise UserNotFound()
-        
-        await user_service.update_user(user, {"is_verified": True}, session)
+        password_hash = generate_passwd_hash(passwords.new_password)
+        await user_service.update_user(user, {"password_hash": password_hash }, session)
 
         return JSONResponse(
-            content={"message": "Account verified successfully"},status_code=status.HTTP_200_OK
+            content={"message": "Password reset Successfully"},status_code=status.HTTP_200_OK
         )
     return JSONResponse(
-        content={"message": "Error occured during verification!!"},status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        content={"message": "Error occured during password reset!!"},status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
     )
